@@ -18,8 +18,8 @@ Application of the deltaMaps method to identify sea surface height anomaly domai
   - tau_max: only important for network inference
 
 ## TBD
-- [ ] check removal of seasonality and trend. Better use non-linear detrending method?
-- [ ] check gaussian filter settings and results
+- [x] check removal of seasonality and trend. Better use non-linear detrending method?
+- [ ] check gaussian filter settings and plot results
 - [ ] apply heuristic to calculate number of random samples. Visualize with boxplot
 - [ ] run dMaps again for different values of k and determine best k
 - [ ] clear up code and push

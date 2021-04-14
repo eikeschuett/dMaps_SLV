@@ -1,6 +1,30 @@
 # dMaps_SSH
 Application of the deltaMaps method to identify sea surface height anomaly domains. deltaMaps for Python is avaialable [on GitHub](https://github.com/FabriFalasca/py-dMaps).
 
+# Notes
+## Adjustment knobs
+- Data preparation
+  - resolution
+  - seasonality removal (done by CDO)
+  - trend removal (done by CDO)
+  - [crop (done by CDO and determined by satellite orbits)]
+  - gaussian filter
+    - sigma
+    - truncate
+- deltaMaps
+  - number of random samples for delta calculation -> heuristic
+  - alpha/q significance levels (should better stay on default values)
+  - k (neighborhood size) -> heuristic
+  - tau_max: only important for network inference
+
+## TBD
+- [ ] check removal of seasonality and trend. Better use non-linear detrending method?
+- [ ] check gaussian filter settings and results
+- [ ] apply heuristic to calculate number of random samples. Visualize with boxplot
+- [ ] run dMaps again for different values of k and determine best k
+- [ ] clear up code and push
+- [ ] update readme workflow to current version
+
 # Workflow
 ## Preparation of environment and general remarks
 For this project I used Python (Miniconda) on Ubuntu on my Windows 10 machine (Windows Subsystem for Linux, WSL). [This article](https://medium.com/@macasaetjohn/setting-up-a-spyder-environment-with-wsl-bb83716a44f3) explains how to install Ubuntu on a Windows 10 computer, install Miniconda and Spyder (which is not trivial if you want to run it from the Ubuntu Bash. However, this will make the preparation of the data easier).

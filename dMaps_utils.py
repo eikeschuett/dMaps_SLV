@@ -433,7 +433,7 @@ def importNetcdf(path,variable_name):
     field = nc_fid.variables[variable_name][:]     
     return field 
 
-def plot_map(lat, lon, data, title, outpath=None):
+def plot_map(lat, lon, data, seeds, title, outpath=None):
     """
     Plots a contourplot in a map with a title. If an output-path is specified,
     the plot is saved as <title>.png in the output directory. If this directory
@@ -447,6 +447,9 @@ def plot_map(lat, lon, data, title, outpath=None):
         Longitude coordinates of the data-array.
     data : array
         Array containing the data that will be plotted.
+    seeds : array or None
+        Array containing the locations of the seeds (cells without seed=0, 
+        cells with seed=1) or None. If None, no seeds will be plotted.
     title : string
         Title of the plot [and output filename if outpath is specified].
     outpath : string, optional
@@ -460,6 +463,7 @@ def plot_map(lat, lon, data, title, outpath=None):
     import matplotlib.pyplot as plt
     import cartopy.crs as ccrs
     import os
+    import numpy as np
     
     fig = plt.figure(dpi=300)
     ax = fig.add_subplot(1,1,1, 
@@ -467,10 +471,21 @@ def plot_map(lat, lon, data, title, outpath=None):
     ax.set_global()
     ax.coastlines('110m', alpha=0.1)
     
+    # Alternative to contourf: plot the "real" raster using pcolormesh
     # filled_c = ax.pcolormesh(lon, lat, data, transform=ccrs.PlateCarree(),
     #                          cmap='gist_ncar')
     filled_c = ax.contourf(lon, lat, data, transform=ccrs.PlateCarree(), levels=100, 
                                cmap='viridis')
+    
+    if type(seeds) == np.ndarray:
+        # Get index of all seed locations and get their lat/lon coordinates
+        y, x = np.where(seeds==1)
+        y_lat = lat[y]
+        x_lon = lon[x]
+        # Plot each seed location
+        for i in range(len(x_lon)):
+            ax.plot(x_lon[i], y_lat[i], marker='.', c='r', markersize=2, 
+                    transform=ccrs.PlateCarree())
 
     fig.colorbar(filled_c, orientation='horizontal')
     ax.set_title(title)
@@ -483,33 +498,86 @@ def plot_map(lat, lon, data, title, outpath=None):
         plt.savefig(outpath + title + '.png')
         plt.close()        
 
-def plot_dMaps_output(geofile, fpath, output = 'domain', outpath=None):
+def plot_dMaps_output(geofile, 
+                      fpath, 
+                      output = 'domain', 
+                      outpath=None, 
+                      show_seeds=False):
+    """
+    Function to plot the output of deltaMaps. By default, it plots a map of all
+    domains, but it can also visualize the local homogeneity and the location 
+    of the seeds as overlay. If no output path (outpath) is specified, the 
+    plots will not be saved. If an output path is specified that does not 
+    exist, it will be created by plot_map()-function.
+
+    Parameters
+    ----------
+    geofile : string
+        Path to the dataset (nc-file) that has been used for the clustering. 
+        (required to get the lat/lon grid.)
+    fpath : string
+        Path to the directory where deltaMaps saved its results. Must contain
+        the subdirectories "domain_identification" and "seed_identification".
+    output : string, optional
+        Desired extent of output (maps that will be produced). Can take the 
+        following values:
+            'all' -> plots local homogeneity map and domain map
+            'domain' -> plots domain map only
+            'homogeneity' -> plots homogeneity map only
+        The default is 'domain'.
+    outpath : string or None, optional
+        Path to the directory where the plots will be stored. If an output path
+        is specified that does not exist, it will be created by plot_map()-
+        function. If None is given, the plots will not be saved. The default 
+        is None.
+    show_seeds : string or None, optional
+        Specifies whether the seeds locations will be plotted onto the maps. 
+        Can take the following values:
+            False -> seeds locations will not be plotted
+            True -> seeds locations will be plotted on all maps
+            'homogeneity' -> seeds locations will be plotted only on the 
+                             homogeneity map
+        The default is False.
+
+    Returns
+    -------
+    None.
+
+    Usage
+    -------
+    plot_dMaps_output(geofile = "data/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc",
+                      fpath = "playground/output/res_2_k_5/", 
+                      output = 'all', 
+                      outpath = None,
+                      show_seeds = 'homogeneity')
+
+    """
     
     import numpy as np
     # import lat/lon vectors
     lon = importNetcdf(geofile,'lon')
     lat = importNetcdf(geofile,'lat')
     
+    if show_seeds == False:
+        seeds = None
+    else:
+        seeds = np.load(fpath + '/seed_identification/seed_positions.npy')  
+    
     if output == 'all' or output == 'homogeneity':
         # Import homogeneity field
         homogeneity_field = np.load(fpath + 
                         '/seed_identification/local_homogeneity_field.npy')
+ 
         plot_map(lat = lat, 
                  lon = lon, 
                  data = homogeneity_field, 
+                 seeds = seeds,
                  title = 'local homogeneity field',
-                 outpath = outpath)
-    if output == 'all' or output == 'seeds':
-        # Import and plot seed positions
-        seeds = np.load(fpath + 
-                        '/seed_identification/seed_positions.npy')   
-        plot_map(lat = lat, 
-                 lon = lon, 
-                 data = seeds, 
-                 title = "seeds",
-                 outpath = outpath)   
+                 outpath = outpath) 
         
     if output == 'all' or output == 'domain':
+        if show_seeds=='homogeneity':
+            seeds = None
         # Import domain maps
         d_maps = np.load(fpath + '/domain_identification/domain_maps.npy')
         # Create array containing the number of each domain
@@ -521,10 +589,11 @@ def plot_dMaps_output(geofile, fpath, output = 'domain', outpath=None):
         domain_map[domain_map==0] = np.nan
                 
         plot_map(lat = lat, 
-                 lon = lon, 
-                 data = domain_map, 
-                 title = "Domain map",
-                 outpath = outpath)            
+                  lon = lon, 
+                  data = domain_map,
+                  seeds = seeds,
+                  title = "Domain map",
+                  outpath = outpath)         
 
 #%% Heuristic to determine best k
 
@@ -713,38 +782,42 @@ if __name__ == "__main__":
     #%% Run delta maps for a range of k values and plot the results
     os.chdir("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/")
     
+    # Define dataset that will be used by deltaMaps
     infile = "data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc"
     
+    # Define range of k-values (neighborhood size)
     k_range = range(1,21,1)
     
-    for k in k_range: #range(20,0,-1):
-        
+    for k in k_range:
+        # Define path and filename of output of deltaMaps
         version = "res_2_k_" + str(k) + "_gaus"
         outdir = "playground/output/" + version
         
         path_to_config = "playground/"
         config_name = "config_sla_aviso_gaus"
-                    
-        create_config_file (path_to_config = path_to_config,
-                                      config_name = config_name,
-                                      path_to_file = infile,
-                                      output_dir = outdir,
-                                      var_name = "sla",
-                                      lat_name='lat',lon_name='lon',
-                                      delta_samples=10000,
-                                      alpha=0.01,
-                                      k=25,
-                                      tau_max=12,
-                                      q=0.05)
-            
+        # Create the configuration file
+        create_config_file(path_to_config = path_to_config,
+                           config_name = config_name,
+                           path_to_file = infile,
+                           output_dir = outdir,
+                           var_name = "sla",
+                           lat_name = 'lat',lon_name = 'lon',
+                           delta_samples = 10000,
+                           alpha = 0.01,
+                           k = k,
+                           tau_max = 12,
+                           q = 0.05)
+        
+        # Run deltaMaps with the configuration file that was just created
         run_dMaps(config_file_name = path_to_config+config_name+".json",
                         dmaps_file_name = "py-dMaps/run_delta_maps.py")
         
+        # Create and store plots of the results of deltaMaps
         plot_dMaps_output(geofile = 'data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg.nc',
-                                       fpath = outdir, 
-                                       output = 'all',
-                                       outpath = 'playground/plots/2_deg_gaus/' + 
-                                                       version + "/") 
+                          fpath = outdir, 
+                          output = 'all',
+                          outpath = 'playground/plots/2_deg_gaus/'+version+"/",
+                          show_seeds = 'homogeneity') 
     
     #%% NMI calculation to find best value for k
         
@@ -755,6 +828,6 @@ if __name__ == "__main__":
                                  k = k_range,
                                  path_end = '_gaus/domain_identification/domain_maps.npy')
         
-    plot_nmi_matrix(nmi_matrix=nmi_matrix,
-                          k = k_range,
-                          fname="playground/plots/2_deg_gaus/nmi_matrix_res_2_gaus.png")
+    plot_nmi_matrix(nmi_matrix = nmi_matrix,
+                    k = k_range,
+                    fname = "playground/plots/2_deg_gaus/nmi_matrix_res_2_gaus.png")

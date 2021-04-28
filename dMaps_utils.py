@@ -430,10 +430,19 @@ def importNetcdf(path,variable_name):
     """
     from netCDF4 import Dataset
     nc_fid = Dataset(path, 'r')
-    field = nc_fid.variables[variable_name][:]     
+    if variable_name == 'time':
+        from netCDF4 import num2date
+        import numpy as np
+        time_var = nc_fid.variables[variable_name]
+        field = num2date(time_var[:],time_var.units, 
+                         only_use_cftime_datetimes=False,
+                         only_use_python_datetimes=True).filled(np.nan).reshape(len(time_var),1)
+    else:
+        field = nc_fid.variables[variable_name][:]     
     return field 
 
-def plot_map(lat, lon, data, seeds, title, outpath=None):
+def plot_map(lat, lon, data, seeds, title, cmap = 'viridis', 
+             outpath=None, labels=False, extent = None):
     """
     Plots a contourplot in a map with a title. If an output-path is specified,
     the plot is saved as <title>.png in the output directory. If this directory
@@ -452,8 +461,17 @@ def plot_map(lat, lon, data, seeds, title, outpath=None):
         cells with seed=1) or None. If None, no seeds will be plotted.
     title : string
         Title of the plot [and output filename if outpath is specified].
+    cmap : string, optional
+        Colormap of the plot. The default is 'viridis'.        
     outpath : string, optional
         Path where the plot will be saved. The default is None.
+    labels : boolean, optional
+        If true, labels will be drawn at each domain (mean of the position of 
+        all non-nan values in data). The default is False.        
+    extent : list, optional
+        The extent of the map. The list must have the following structure: 
+        [lon_min, lon_max, lat_min, lat_max]. If None is given, the entire 
+        earth will be shown. The default is None.             
 
     Returns
     -------
@@ -461,21 +479,39 @@ def plot_map(lat, lon, data, seeds, title, outpath=None):
 
     """
     import matplotlib.pyplot as plt
-    import cartopy.crs as ccrs
+    from  cartopy import crs as ccrs, feature as cfeature
     import os
     import numpy as np
     
-    fig = plt.figure(dpi=300)
-    ax = fig.add_subplot(1,1,1, 
-                         projection = ccrs.PlateCarree(central_longitude=180))
-    ax.set_global()
-    ax.coastlines('110m', alpha=0.1)
+    
+    if extent is None:
+        crs = ccrs.PlateCarree(central_longitude=180)
+    else:
+        crs = ccrs.PlateCarree()
+    
+    
+    fig, ax =  plt.subplots(1,1,figsize=(12,8), dpi=300,
+                            subplot_kw=dict(projection=crs))    
+    
+    # fig = plt.figure(dpi=300)
+    # ax = fig.add_subplot(1,1,1, 
+    #                      projection = ccrs.PlateCarree(central_longitude=180))
+    
+    if extent is None:
+        ax.set_global()
+    else:
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
+    
+    # ax.coastlines('110m', alpha=0.1)
+    ax.add_feature(cfeature.NaturalEarthFeature("physical", "land", "110m"), 
+                   facecolor='xkcd:grey', zorder=0)
     
     # Alternative to contourf: plot the "real" raster using pcolormesh
     # filled_c = ax.pcolormesh(lon, lat, data, transform=ccrs.PlateCarree(),
     #                          cmap='gist_ncar')
-    filled_c = ax.contourf(lon, lat, data, transform=ccrs.PlateCarree(), levels=100, 
-                               cmap='viridis')
+
+    filled_c = ax.contourf(lon, lat, data, transform = ccrs.PlateCarree(), 
+                           levels = 100, cmap = cmap)#, vmin = 0, vmax=100)
     
     if type(seeds) == np.ndarray:
         # Get index of all seed locations and get their lat/lon coordinates
@@ -486,6 +522,23 @@ def plot_map(lat, lon, data, seeds, title, outpath=None):
         for i in range(len(x_lon)):
             ax.plot(x_lon[i], y_lat[i], marker='.', c='r', markersize=2, 
                     transform=ccrs.PlateCarree())
+            
+    if labels == True:
+        for i in np.unique(data[~np.isnan(data)]):
+            y, x = np.where(data==i)
+            
+            # if domain crosses LON=0, assign the label to one 1° or -1°
+            # (otherwise it will be somehwere on the other side of the earth)
+            if 0 in x and 179 in x:
+                x = int(np.round(np.mean(x)))
+                if x < 90:
+                    x = 0
+                else:
+                    x = 179
+            else:
+                x = int(np.round(np.mean(x)))
+            y = int(np.round(np.mean(y)))
+            ax.text(lon[x],lat[y], int(i-1), c='k', transform=ccrs.PlateCarree())
 
     fig.colorbar(filled_c, orientation='horizontal')
     ax.set_title(title)
@@ -495,14 +548,17 @@ def plot_map(lat, lon, data, seeds, title, outpath=None):
     else:
         if not os.path.exists(outpath):
             os.makedirs(outpath)
-        plt.savefig(outpath + title + '.png')
-        plt.close()        
+        plt.savefig(outpath + title + '.png', bbox_inches = 'tight')
+        plt.close()    
+        
+        
 
 def plot_dMaps_output(geofile, 
                       fpath, 
                       output = 'domain', 
                       outpath=None, 
-                      show_seeds=False):
+                      show_seeds=False,
+                      extent = None):
     """
     Function to plot the output of deltaMaps. By default, it plots a map of all
     domains, but it can also visualize the local homogeneity and the location 
@@ -538,6 +594,10 @@ def plot_dMaps_output(geofile,
             'homogeneity' -> seeds locations will be plotted only on the 
                              homogeneity map
         The default is False.
+    extent : list, optional
+        The extent of the map. The list must have the following structure: 
+        [lon_min, lon_max, lat_min, lat_max]. If None is given, the entire 
+        earth will be shown. The default is None.               
 
     Returns
     -------
@@ -573,7 +633,9 @@ def plot_dMaps_output(geofile,
                  data = homogeneity_field, 
                  seeds = seeds,
                  title = 'local homogeneity field',
-                 outpath = outpath) 
+                 cmap = 'viridis',
+                 outpath = outpath,
+                 extent = extent)     
         
     if output == 'all' or output == 'domain':
         if show_seeds=='homogeneity':
@@ -581,19 +643,327 @@ def plot_dMaps_output(geofile,
         # Import domain maps
         d_maps = np.load(fpath + '/domain_identification/domain_maps.npy')
         # Create array containing the number of each domain
-        domain_map = np.zeros((d_maps.shape[1], d_maps.shape[2]))
-        i = 1
-        for d in range(len(d_maps)):
-            domain_map[d_maps[d] == 1] = i
-            i += 1
-        domain_map[domain_map==0] = np.nan
+        domain_map = get_domain_map(d_maps)
                 
         plot_map(lat = lat, 
                   lon = lon, 
                   data = domain_map,
                   seeds = seeds,
                   title = "Domain map",
-                  outpath = outpath)         
+                  cmap = 'prism',
+                  outpath = outpath,
+                  labels = True,
+                  extent = extent)             
+        
+    if output == 'all' or output == 'domain strength':
+        seeds = None
+        # Import domain maps
+        strength_map = np.load(fpath + '/network_inference/strength_map.npy')
+        strength_map[strength_map==0] = np.nan
+                
+        plot_map(lat = lat, 
+                 lon = lon, 
+                 data = strength_map,
+                 seeds = seeds,
+                 title = "Strength map",
+                 cmap = 'viridis',
+                 outpath = outpath,
+                 extent = extent)          
+        
+def get_domain_map(d_maps):
+    """
+    Helper function that returns an array with the grid values for the 
+    corresponding domain.
+
+    Parameters
+    ----------
+    d_maps : np.array
+        Three dimensional umpy array from 
+        .../domain_identification/domain_maps.npy.
+
+    Returns
+    -------
+    domain_map : np.array
+        Two dimensional numpy array with the domain number as grid cell values.
+        If no domain is present at a grid cell, a np.nan will be inserted.
+
+    """
+    import numpy as np
+    # Create array containing the number of each domain
+    domain_map = np.zeros((d_maps.shape[1], d_maps.shape[2]))
+    i = 1
+    for d in range(len(d_maps)):
+        domain_map[d_maps[d] == 1] = i
+        i += 1
+    domain_map[domain_map==0] = np.nan
+    return domain_map
+      
+    
+     
+#%% plot network
+
+def create_network(net_list, strength_list, graph_type):
+    """
+    Creates a networkx-network from dMaps output data. 
+
+    Parameters
+    ----------
+    net_list : np.array
+        Array from network_inference/network_list.npy.
+    strength_list : np.array
+        array from network_inference/strength_list.npy.
+    graph_type : nx.Graph() or nx.DiGraph()
+        Decides if the network has directed egdes (arrows on the edges in the
+        plot). nx.DiGraph() creates a directed network, where the edges are 
+        directed from the domain in the first column in net_list to the domain 
+        in the second column.
+
+    Returns
+    -------
+    G : networkx.classes.graph.Graph
+        Network of the deltaMaps output.
+    edges : tuple
+        Tuples of all edges between domains.
+    weights : tuple
+        Weights of each edge defined in edges.
+    nodes_strength : list
+        List of the strength of each node (can be used to assign different 
+        colors for the nodes).
+
+    """
+    import networkx as nx
+    import pandas as pd
+    import numpy as np
+    # Build a dataframe with your connections
+    # directly convert from dMaps numbering to numbers from my plot
+    df = pd.DataFrame({'from': [np.where(strength_list[:,0]==i)[0][0] for i in net_list[:,0]], 
+                       'to': [np.where(strength_list[:,0]==i)[0][0] for i in net_list[:,1]], 
+                       'weight': net_list[:,5],
+                       'lag': abs(net_list[:,4])})
+    
+    # Build the graph
+    G=nx.from_pandas_edgelist(df, 'from', 'to',edge_attr=['weight', 'lag'], 
+                              create_using=graph_type )
+    
+    # Create tuples for each edge and the corresponding weights
+    try:
+        edges,weights = zip(*nx.get_edge_attributes(G,'weight').items())
+    except ValueError: # if graph is empty
+        edges = weights = None
+    
+    # get the domain strengths for each domain in the correct order
+    # nodes colours are associated with nodes in G.nodes (other ordering than in
+    # strength_list)
+    nodes_strength = [strength_list[i,1] for i in G.nodes()]
+    return G, edges, weights, nodes_strength
+
+
+
+def plot_network(fpath, geofile, out_fpath, extent = None):
+    """
+    Plots the network and the domain strengths infered by deltaMaps onto a 
+    projected world map. It creates a networkx-network based on the deltaMaps
+    data and uses cartopy to plot this data.
+
+    Parameters
+    ----------
+    fpath : str
+        Path to the folder where deltaMaps stored everything (i.e. has subdirs
+        network_inference and domain_identification).
+    geofile : str
+        Filepath and filename of the nc-file that has been analysed by 
+        deltaMaps (Required for determining the geo-coordinates of the nodes)
+    out_fpath : str
+        filepath and filename of the output plot.
+    extent : list, optional
+        The extent of the map. The list must have the following structure: 
+        [lon_min, lon_max, lat_min, lat_max]. If None is given, the entire 
+        earth will be shown. The default is None.               
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    
+    # import os
+    # try:
+    #     os.chdir("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/")
+    # except FileNotFoundError:
+    #     os.chdir("H:/Eigene Dateien/Studium/10. Semester/NIOZ/")    
+        # os.chdir("G:/Eigene Dateien/Studium/10. Semester/NIOZ/")
+    # from dMaps_SLV import dMaps_utils as dMaps
+    import numpy as np
+    import networkx as nx
+    import matplotlib.pyplot as plt
+    from  cartopy import crs as ccrs, feature as cfeature
+    import cmocean
+    
+    # create the network with networkX
+    
+    # import of data
+    # fpath = "playground/output/res_2_k_8_gaus/"
+    
+    net_list = np.load(fpath + "network_inference/network_list.npy")
+    strength_list = np.load(fpath + "network_inference/strength_list.npy")
+    strength_map = np.load(fpath + "network_inference/strength_map.npy")
+    strength_map[strength_map==0] = np.nan
+    d_maps = np.load(fpath + '/domain_identification/domain_maps.npy')
+    
+    # geofile = "data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc"
+    lon = importNetcdf(geofile,'lon')
+    lat = importNetcdf(geofile,'lat')
+    
+    
+    # Domain calculations
+    
+    # create an array containing all domains with their respective number as 
+    # cell value
+    domain_map = get_domain_map(d_maps)
+            
+    # Calculate average coordinates for each domain (will be the coordinates 
+    # for the nodes in the plot)
+    ids = []
+    coords_temp = []
+    for i in np.unique(domain_map[~np.isnan(domain_map)]):
+        y, x = np.where(domain_map==i)
+        
+        if 0 in x and 179 in x:
+            x = int(np.round(np.mean(x)))
+            if x < 90:
+                x = 0
+            else:
+                x = 179
+        else:
+            x = int(np.round(np.mean(x)))
+        y = int(np.round(np.mean(y)))
+        
+        x = lon[x]-180
+        y = lat[y]
+
+        ids.append(i)
+        coords_temp.append((x,y))
+    
+    coords = {ids[i]-1: coords_temp[i] for i in range(len(ids))}
+    
+    
+    # get all edges with a direction
+    i_undir = []
+    i_dir = []
+    for i in range(len(net_list)):
+        if 0 in range(int(net_list[i,2]), int(net_list[i,3])+1):
+            i_undir.append(i)
+        else:
+            i_dir.append(i)
+    
+    # get all undirected edges
+    edge_undir = net_list[i_undir,:]
+    
+    # get all directed edges
+    edge_dir = net_list[i_dir, :]
+    # if values are negative, edges goes from B to A -> flip values in columns 
+    # 1+2
+    idx = edge_dir[:,4]<0
+    edge_dir[:,0][idx], edge_dir[:,1][idx] = edge_dir[:,1][idx], edge_dir[:,0][idx]
+    
+    
+    
+    # Plot the network on a map
+    node_vmin = 0 # np.quantile(nodes_strength, 0.05)
+    node_vmax = 10 # np.quantile(nodes_strength, 0.95)
+    cmap_nodes = cmocean.cm.thermal
+    
+    edge_vmin = -0.8 # np.quantile(df.weight,0.05)# df.weight.min()
+    edge_vmax = 0.8 # np.quantile(df.weight,0.95) # df.weight.max()
+    cmap_edges = cmocean.cm.balance
+    
+    if extent is None:
+        crs = ccrs.PlateCarree(central_longitude=180)
+    else:
+        crs = ccrs.PlateCarree()
+    
+    fig, ax =  plt.subplots(1,1,figsize=(12,8), dpi=300,
+                            subplot_kw=dict(projection=crs))
+    
+    # ax.add_feature(cfeature.LAND, edgecolor='k')
+    ax.add_feature(cfeature.NaturalEarthFeature("physical", "land", "110m"), 
+                   facecolor='xkcd:grey', zorder=0)
+    
+    ax.contourf(lon, lat, strength_map, transform = ccrs.PlateCarree(), 
+                levels=100, cmap = cmap_nodes, 
+                vmin = node_vmin, vmax=node_vmax)
+    
+    
+    G, edges, weights, nodes_strength = create_network(net_list = net_list, 
+                                                strength_list = strength_list, 
+                                                graph_type = nx.Graph())
+        
+    nx.draw_networkx_nodes(G, pos = coords, node_size=150, cmap = cmap_nodes,
+                               #node_color = nodes_strength, 
+                               node_color='w',
+                               vmin = node_vmin, vmax = node_vmax)
+    
+    nx.draw_networkx_labels(G, pos=coords, font_size=10, font_color='k')
+    
+    edgy = [edge_undir, edge_dir]
+    graph_types = [nx.Graph(), nx.DiGraph()]
+    
+    for i in range(len(edgy)):
+        edges_array = edgy[i]
+        graph_type = graph_types[i]
+        G, edges, weights, nodes_strength = create_network(net_list = edges_array, 
+                                                strength_list = strength_list, 
+                                                graph_type=graph_type)
+        
+    
+        
+        if i==1:
+            nx.draw_networkx_edge_labels(G,pos=coords, 
+                                     edge_labels=nx.get_edge_attributes(G,'lag'),
+                                     label_pos=0.85, font_size=6)
+    
+        nx.draw_networkx_edges(G, pos=coords, edgelist = edges, 
+                               edge_color=weights,
+                               edge_cmap = cmap_edges, 
+                               edge_vmin = edge_vmin, edge_vmax = edge_vmax,
+                               width = 2,
+                               connectionstyle="arc3,rad=0.3")
+    
+    if extent is None:
+        ax.set_global()
+    else:
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
+    
+    # Define colorbar for the nodes
+    sm = plt.cm.ScalarMappable(cmap=cmap_nodes, 
+                               norm=plt.Normalize(vmin = node_vmin,
+                                                  vmax = node_vmax))
+    
+    cbaxes = fig.add_axes([0.125, 0.1, 0.35, 0.04])
+    sm._A = []
+    cbar_nodes = fig.colorbar(sm, cax=cbaxes, orientation='horizontal', 
+                              shrink=0.3, pad=0.05)
+    cbar_nodes.set_label("Domain strength")
+    # cbar_nodes.ax.set_title("Node & Domain colour")
+    
+    # Define colorbar for the edges
+    sm = plt.cm.ScalarMappable(cmap=cmap_edges, 
+                               norm=plt.Normalize(vmin = edge_vmin, 
+                                                  vmax = edge_vmax))
+    
+    cbaxes = fig.add_axes([0.55, 0.1, 0.35, 0.04])
+    sm._A = []
+    cbar_edges = fig.colorbar(sm, cax=cbaxes, orientation='horizontal', 
+                              shrink=0.3, pad=0.05)
+    cbar_edges.set_label("Cross-Correlation (Edges)")
+    # cbar_edges.ax.set_title("Edge colour")
+    
+    # plt.savefig("playground/plots/Network/res_2_k_8_gaus/dMaps_network.png")
+    plt.savefig(out_fpath, bbox_inches = 'tight')
+
+
+        
 
 #%% Heuristic to determine best k
 
@@ -730,7 +1100,142 @@ def plot_nmi_matrix(nmi_matrix, k, fname=None):
     if fname == None:
         plt.show()
     else:
-        plt.savefig(fname)
+        plt.savefig(fname, bbox_inches = 'tight')
+        
+#%% Functions to return domain signals
+def get_domain_signals(domains, sla, lat, signal_type = 'cumulative'):
+    """
+    Function that returns the cumulative or average domain signals for each 
+    time step in sla. The signal of each grid cell is weighted according to
+    the latitude of the grid cell.
+
+    Parameters
+    ----------
+    domains : np.array
+        Domain output array of deltaMaps (i.e. with an (x,y,z) dimensionality).
+    sla : np.array
+        Array with the signals (i.e. sea level anomalies here). This is an
+        array with three dimensions (t,x,y) that was also used to identify the
+        domains.
+    lat : np.array
+        Vector with latitudes of each row of grids.
+    signal_type : string, optional
+        Type of the signal to be returned. Can be 'cumulative' (i.e. the sum of
+        the signal of all grid cells in a domain) or 'average' (i.e. the mean 
+        signal of all grid cells). The default is 'cumulative'.
+
+    Returns
+    -------
+    np.array
+        Numpy array containing the domain signals for each domain (x-axis) for each timestep in sla (y-axis).
+
+    """
+    import numpy as np
+    # transform latitudes to radians
+    lat_rad = np.radians(lat)
+    # Assigna a weight to each latitude phi
+    lat_weights = np.cos(lat_rad).reshape(len(lat_rad),1)
+    # Define the weighted domain
+    weighted_domains = domains*lat_weights
+    
+    
+    signals = []
+    for i in range(len(weighted_domains)):
+        if signal_type == 'cumulative':
+            signals.append(cumulative_anomaly(sla, weighted_domains[i]))
+        # in case you want the average anomaly
+        elif signal_type == 'average':
+            signals.append(average_anomaly(sla, weighted_domains[i])) 
+    return np.array(signals).T
+
+def cumulative_anomaly(data,domain):
+    # input:
+    #       (a) data: spatiotemporal climate field (i.e., np.shape(data) = (time, lats, lon))
+    #       (b) domain: weighted domain (i.e., np.shape(domain) = (lats, lon))
+    # output:
+    #       (a) domain's signal:
+    #           X(t) = Sum(x_i(t)*cos(phi_i))
+    #           where: x_i(t): timeseries at grid point i
+    #                  phi_i: latitude of grid point i
+    import numpy as np
+    return np.nansum(data*domain,axis=(1,2))
+
+# Function to compute the average domain's anomaly
+def average_anomaly(data,domain):
+    # input:
+    #       (a) data: spatiotemporal climate field (i.e., np.shape(data) = (time, lats, lon))
+    #       (b) domain: weighted domain (i.e., np.shape(domain) = (lats, lon))
+    # output:
+    #       (a) domain's signal:
+    #           X(t) = (1/n)Sum(x_i(t)*cos(phi_i))
+    #           where: x_i(t): timeseries at grid point i
+    #                  phi_i: latitude of grid point i
+    #                  n: number of time series in the domain
+    import numpy as np
+    # Number of grid cells inside the domain
+    n = len(domain[domain>0])
+    return (1/n) * np.nansum(data*domain,axis=(1,2))
+
+def plot_domain_signals(signals, domain_ids, time, var_names, 
+                        filepath = None, filename = None):
+    """
+    Creates a line plot of the domain signals for specified regions.
+
+    Parameters
+    ----------
+    signals : np.array
+        Output array of dMaps.get_domain_signals (or a derivative...).
+    domain_ids : list
+        List of the index of the domains to be plotted. Can have any length.
+    time : np.arary with datetime.datetime objects
+        Time that will be plotted on the x-axis. Is the output of e.g.
+        dMaps.importNetcdf(geofile,'time')
+    var_names : list
+        List of the names of all domains. Will be used for the legend label.
+    filepath : str, optional
+        Filepath location. If None is given, the plot will just be shown and 
+        not be saved. The default is None.
+    filename : str, optional
+        The filename of the output image. E.g. "Domain_signals.png". The 
+        default is None.
+    
+    Returns
+    -------
+    None.
+
+    Example usage:
+    --------------
+    signals = dMaps.get_domain_signals(d_maps, sla, lat, signal_type='average')
+    domain_list = [21,24,25,45,37,13,7,35, 41, 19]
+    # keep only some regions
+    signals = signals[:,domain_list]
+    var_names = ["ENSO", "SE Asia",  "W Indian", "S Atl", "Trop Atl", "E USA", "E Can", "S HS", "N Atl", "NE Atl"]
+    domain_ids = [0,1] # Plot only these rergions
+    filepath = "playground/plots/2_deg_gaus_a_1_tau_24/res_2_k_12_gaus_a_1_tau_24/network/"
+    filename = "domain_signals_ENSO_.png"
+    plot_domain_signals(signals = signals, 
+                        domain_ids = domain_ids, 
+                        time = time, 
+                        var_names = var_names, 
+                        filepath = None,
+                        filename = filename)
+    """
+    import matplotlib.pyplot as plt
+    import os
+    
+    fig, ax = plt.subplots(figsize=(8,4), dpi=300)
+    for i in domain_ids:
+        ax.plot(time, signals[:,i],linewidth = 2, label=var_names[i])
+    ax.set_ylabel('average domain SLA [cm]',fontsize = 15)
+    ax.legend()
+    ax.grid()
+    if filepath==None:
+        plt.show()
+    else:
+        if not os.path.exists(filepath):
+            os.makedirs(filepath)
+        plt.savefig(filepath+filename, bbox_inches = 'tight')
+        plt.close()  
 
 
 #%% Download and prepare dataset

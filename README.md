@@ -1,29 +1,19 @@
-# dMaps_SSH
-Application of the deltaMaps method to identify sea surface height anomaly domains. deltaMaps for Python is avaialable [on GitHub](https://github.com/FabriFalasca/py-dMaps).
+# dMaps_SLV
+Application of deltaMaps method to identify sea surface veriability domains. deltaMaps for Python is avaialable [on GitHub](https://github.com/FabriFalasca/py-dMaps).
+
+A functional network is infered with deltaMaps and a causal network with PCMCI (included in the package [tigramite](https://github.com/jakobrunge/tigramite).
 
 # Notes
-## Adjustment knobs
-- Data preparation
-  - resolution
-  - seasonality removal (done by CDO)
-  - trend removal (done by CDO)
-  - [crop (done by CDO and determined by satellite orbits)]
-  - gaussian filter
-    - sigma
-    - truncate
-- deltaMaps
-  - number of random samples for delta calculation -> heuristic
-  - alpha/q significance levels (should better stay on default values)
-  - k (neighborhood size) -> heuristic
-  - tau_max: only important for network inference
 
 ## TBD
-- [x] check removal of seasonality and trend. Better use non-linear detrending method?
-- [x] check gaussian filter settings and plot results
-- [ ] apply heuristic to calculate number of random samples. Visualize with boxplot
-- [ ] run dMaps again for different values of k and determine best k
-- [x] clear up code and push
-- [x] update readme workflow to current version
+- [x] update readme
+- [ ] check influence of taumax on dMaps and PCMCI network
+- [ ] plot PCMCI network with lower p value
+- [ ] interprete network
+- [ ] update report
+- [ ] read paper
+- [ ] apply PCM
+- [ ] apply pyUnicorn
 
 # Workflow
 
@@ -33,9 +23,13 @@ Additionally, the following python packages are required:
 - numpy
 - scipy
 - scikit-learn
+- pandas
 - netCDF4
 - matplotlib
 - cartopy
+- cmocean
+- networkx
+- (tigramite for causal discovery)
 
 Alternatively, you can clone my Anaconda environment. This may be useful since I have not been using the newest versions of all packages in order to get Spyder running from the Ubuntu WSL. The file env.txt contains the required package information and the conda command required to clone the environment (in the second line).
 
@@ -50,7 +44,7 @@ sudo apt-get upgrade
 ```
 
 ## Prepare data, run deltaMaps and visualize the results
-dMaps_utils.py contains all functions required to download and preprocess the AVISO (or any other) dataset, run deltaMaps, visualize the results and apply the proposed heuristic by [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654) to identify the optimal value for the neighborhood size (k). In dMaps_utils.py all functions are defined first and then a code example is provided.
+dMaps_utils.py contains all functions required to download and preprocess the AVISO (or any other) dataset, run deltaMaps, visualize the results and apply the proposed heuristic by [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654) to identify the optimal value for the neighborhood size (k). In dMaps_utils.py all functions are defined and a code example is provided.
 
 ### Download and preprocessing of data
 To make it easier to download and preprocess the data, use the following functions:
@@ -65,7 +59,8 @@ To make it easier to download and preprocess the data, use the following functio
 2. run_dMaps(): Applies the deltaMaps with the settings specified in the previous step.
 
 ### Visualize output
-plot_dMaps_output(): Plots a map of the local homogeneity and/or domains. If needed, it can also plot the locations of the seeds on the maps.
+plot_dMaps_output(): Plots a map of the local homogeneity and/or domains and/or domain strength. If needed, it can also plot the locations of the seeds on the maps.
+plot_network(): Plots the functional network infered by deltaMaps on a projected map.
 
 ### Finding the best value for K
 Finding the best value for the neighborhood size (K) (i.e. the K nearest neighbors around a grid cell that initially form a region) is a crucual step when using deltaMaps. If K is too small, the local homogeneity field will be noisy, if its too large, the local homogeneity may be oversmoothed and candidates for domains may remain undeteced. According to [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654), the best K-value can be found by comparing the differences between several runs of deltaMaps with different values for k using the Normalize Mutual Information (NMI). This is done in
@@ -100,3 +95,10 @@ cdo -L -ymonsub AVISO_dt_global_allsat_msla_h_1993-2020.nc -ymonmean AVISO_dt_gl
 ```
 cdo detrend AVISO_dt_global_allsat_msla_h_1993-2020_s.nc AVISO_dt_global_allsat_msla_h_1993-2020_s_t.nc
 ```
+
+## PCMCI
+
+Since deltaMaps provides only a functional network (based on simple cross-correlations), the PCMCI method from the package [tigramite](https://github.com/jakobrunge/tigramite) can be used to infer a causal network and analyse the network. This is done in "run_tigramite_on_dMaps.py". This code provides a function that prepares the deltaMaps output for PCMCI and applies this algorithm. Then it plots the network on a projected map and maps of the Average Causal Effect & Average Causal Susceptibility as well as the Average Mediated Causal Effect. A code example is provided.
+
+## Results
+Data and plots are available in the /results-directory.

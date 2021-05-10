@@ -6,14 +6,12 @@ A functional network is infered with deltaMaps and a causal network with PCMCI (
 # Notes
 
 ## TBD
-- [x] update readme
-- [ ] check influence of taumax on dMaps and PCMCI network
-- [ ] plot PCMCI network with lower p value
+- [ ] update readme
+- [x] plot PCMCI network with lower p value
 - [ ] interprete network
 - [ ] update report
 - [ ] read paper
-- [ ] apply PCM
-- [ ] apply pyUnicorn
+- [ ] update bash scripts for data preparation
 
 # Workflow
 

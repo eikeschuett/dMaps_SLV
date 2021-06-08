@@ -41,8 +41,16 @@ sudo apt-get install cdo
 sudo apt-get upgrade
 ```
 
-## Prepare data, run deltaMaps and visualize the results
-dMaps_utils.py contains all functions required to download and preprocess the AVISO (or any other) dataset, run deltaMaps, visualize the results and apply the proposed heuristic by [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654) to identify the optimal value for the neighborhood size (k). In dMaps_utils.py all functions are defined and a code example is provided.
+## Preparation of SLA data and dimensionality reduction with deltaMaps
+``dMaps_utils.py`` contains many (helper-) functions required to download and preprocess the AVISO (or any other) dataset, run deltaMaps, visualize the results and apply the proposed heuristic by [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654) to identify the optimal value for the neighborhood size (k).
+
+To download and preprocess the data, open ``dMaps_utils.py`` and scroll towards the ``Download and prepare dataset`` section (~line 1305). In this section, you need to check that all file paths are correct and you enter your AVISO credentials. Then run this file in you ``dMaps``-environment on Ubuntu. By default, the final output file will be called ``AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc``.
+
+For convinience, i now switched to my ``networkx``-environment on Windows, but I think you should be able to run deltaMaps from the environment on Ubuntu. Anyway, to run deltaMaps on the prepared SLA dataset, have a look into ``run_dMaps_on_SLA.py``. Again you should check that all path and filenames are correct. There are two pitfalls: 1. The repository ``dMaps_SLV`` (from where ``dMaps_utils`` is imported) is a subdirectory of the working directory. If this is different in your case, you need to sys.append the directory containing ``dMaps_utils`` to import it correctly. 2: The function ``dMaps.run_dMaps`` (~line 37) requires the (relative) path the ``run_delta_maps.py``, which is located in your clone of the deltaMaps-repo (``py-Dmaps``).
+
+Finding the best value for the neighborhood size (K) (i.e. the K nearest neighbors around a grid cell that initially form a region) is a crucual step when using deltaMaps. If K is too small, the local homogeneity field will be noisy, if its too large, the local homogeneity may be oversmoothed and candidates for domains may remain undeteced. According to [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654), the best K-value can be found by comparing the differences between several runs of deltaMaps with different values for k using the Normalize Mutual Information (NMI). For this reason, deltaMaps will by default run for k's between 4 and 20 and the NMI-matrix will be plotted at the end. K should be choosen so that the NMI is large for this K and for neighboring values of K. This avoids that the K is sensitive to fluctuations around the chosen K value. It should also be at least 4 so that neighbors in all directions of a grid cell are considered. In my case, k=11 appears to be the best choice. Therefore, the results from the deltaMas run with k=11 will be used for the remainder of the study.
+
+
 
 ### Download and preprocessing of data
 To make it easier to download and preprocess the data, use the following functions:

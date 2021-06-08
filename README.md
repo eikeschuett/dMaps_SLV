@@ -7,33 +7,48 @@ A functional network is infered with deltaMaps and a causal network with PCMCI (
 
 ## TBD
 - [ ] update readme
-  - [ ]  data preparation (bash scripts are included) and availability of climate indices!
-  - [ ]  environments yml files
-  - [ ]  structure of directories and required additional packages which are not available through conda (i.e. airsea and py-dMaps)
-  - [ ]  animation
+  - [x]  data preparation (bash scripts are included) and availability of climate indices!
+  - [x]  environments yml files
+  - [x]  structure of directories and required additional packages which are not available through conda (i.e. airsea and py-dMaps)
+  - [x]  animation
 - [ ] write and upload report
 - [ ] uplaod animation script
-- [ ] prepare presentation for thuesday
+- [ ] prepare presentation for Thusday
 
 # Workflow
+## Overview
+This study is divided into three main parts: 
+1. Dimensionality reduction with [deltaMaps](https://github.com/FabriFalasca/py-dMaps)
+2. Inference of a causal network with [PCMCI](https://github.com/jakobrunge/tigramite)
+3. Data analysis and interpretation of the results
+
 
 ## Preparation of environment and general remarks
-For this project I used Python (Miniconda) on Ubuntu on my Windows 10 machine (Windows Subsystem for Linux, WSL). [This article](https://medium.com/@macasaetjohn/setting-up-a-spyder-environment-with-wsl-bb83716a44f3) explains how to install Ubuntu on a Windows 10 computer, install Miniconda and Spyder (which is not trivial if you want to run it from the Ubuntu Bash. However, this will make the preparation of the data easier).
-Additionally, the following python packages are required:
-- numpy
-- scipy
-- scikit-learn
-- pandas
-- netCDF4
-- matplotlib
-- cartopy
-- cmocean
-- networkx
-- (tigramite for causal discovery)
+In this project, I used data from different sources and code from different other repositories. All data I used is freely available on the internet (on some pages its required to create an account). Because of legal concerns and the size of the datasets, not all of the data I used is included in this repo. Instead, I included download instructions and scripts to prepare the data in the same way I did it. I recommend to put these files into a ```data```-directory in the parent directory of this repo (see directory tree below). For the packages [airsea](https://github.com/pyoceans/python-airsea) and [deltaMaps](https://github.com/FabriFalasca/py-dMaps) no installation through conda or pip is available so far. Therefore I cloned them into the parent directory of this repo (see directory tree below). In all scripts I used the parent directory or this repo as working directory and imported the packages from there. Other approaches to properly install them or use the ```sys.path.append()```-function work as well, but may require some adjustments in the filepaths in the code.
 
-Alternatively, you can clone my Anaconda environment. This may be useful since I have not been using the newest versions of all packages in order to get Spyder running from the Ubuntu WSL. The file env.txt contains the required package information and the conda command required to clone the environment (in the second line).
+```bash
+├── airsea (from: https://github.com/pyoceans/python-airsea)
+├── data
+│   ├── climate_indices
+│   │   ├── nino_34_anomaly.txt
+│   ├── CMEMS
+│   ├── ERA5
+│   │   ├── ERA5_wind_pressure_2_deg.nc
+│   │   ├── ERA5_wind_pressure_05_anomalies_2_deg.nc
+├── dMaps_SLV (this repository)
+├── py-dMaps (from https://github.com/FabriFalasca/py-dMaps)
+```
+### Preparation of Python environments
+I used two different environments for this project. For the first part (deltaMaps) I worked in Python (Miniconda) on Ubuntu on my Windows 10 machine (Windows Subsystem for Linux, WSL), which made the download and preprocessing of the SLA dataset from AVISO much easier. Later I switched to Python (Anaconda) directly on Windows, because this was a bit easier. If I remember correctly, this was because of conflicts between the required packages which were requrired for deltaMaps and tigramite, so that I would have needed to use two environments anyway. Below are more detailed instructions on how to clone my Python environments.
 
-Additionally, you need to have the python version of deltaMaps locally on your computer (get it [here](https://github.com/FabriFalasca/py-dMaps) ).
+#### deltaMaps environment on Ubuntu
+For this project I used Python (Miniconda) on Ubuntu on my Windows 10 machine (Windows Subsystem for Linux, WSL). [This article](https://medium.com/@macasaetjohn/setting-up-a-spyder-environment-with-wsl-bb83716a44f3) explains how to install Ubuntu on a Windows 10 computer, install Miniconda and Spyder (which is not trivial if you want to run it from the Ubuntu Bash. However, this will make the preparation of the AVISO data easier).
+
+Some additional packages are required. I included ``deltaMaps_env.yml`` in the repo, so that you can clone my environment using this command in your Ubuntu bash:
+```
+conda env create -f deltaMaps_env.yml
+```
+Additionally, you need to have the python version of deltaMaps locally on your computer (get it [here](https://github.com/FabriFalasca/py-dMaps)) and place it in the parent directory of this repo (see directory tree above).
 
 The prepparation of the dataset is mainly based on [Climate Data Operators (CDO)](https://code.mpimet.mpg.de/projects/cdo). Instructions on the installation on Windows can be found [here](https://code.mpimet.mpg.de/projects/cdo/wiki/Win32). I chose to install CDO in my Ubuntu environment, because it's dead simple to install it with the native package manager (apt). In the Ubuntu bash run these two commands:
 ```
@@ -42,6 +57,14 @@ sudo apt-get install cdo
 ```
 sudo apt-get upgrade
 ```
+#### networkx environment for Tigramtie on Windows
+To run the PCMCI algorithm from the tigramite package (and to properly plot the results) I created a new environment in Anaconda on Windows. You can clone this environment with this command
+```
+conda env create -f networkx_env.yml
+```
+The data analysis was also done in this environment. To calculate windstress, I used the package [airsea](https://github.com/pyoceans/python-airsea), which needs to be installed in the same way as py-dMaps. For correlation analysis I downlaoded data for the [Nino3.4 index from NOAA](https://psl.noaa.gov/gcos_wgsp/Timeseries/Nino34/) and saved it as ``parent_dir/data/climate_indices/nino_34_anomaly.txt`` (see directory tree above).
+
+Now that the preparation is done, we can (almost) start to run the codes!
 
 ## Preparation of SLA data and dimensionality reduction with deltaMaps
 ``dMaps_utils.py`` contains many (helper-) functions required to download and preprocess the AVISO (or any other) dataset, run deltaMaps, visualize the results and apply the proposed heuristic by [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654) to identify the optimal value for the neighborhood size (k).
@@ -55,18 +78,30 @@ Finding the best value for the neighborhood size (K) (i.e. the K nearest neighbo
 ## Inference of a causal network with the PCMCI-algorithm from the tigramite package
 ``run_tigramite_on_dMaps.py`` contains some helper functions to run tigramite on the results of deltaMaps (i.e. SLA dataset with reduces dimensionality). Again, you should check that the working directory (~ line 665) and all other filepaths are correct. Some of the functions import ``dMaps_utils.py`` and ``network_analysis_utils.py``. Therefore I suggest to use the parent directory of the repo as working directory. Otherwise you will have to fix this with a sys.append. 
 
-PCMCI can take some time to process. Therefore, the result of the algorithm will be saved as a pickle-file. Additionally, the network will be plotted and saved. Optionally, the plotting-function supports to plot only edges to/from a specific node.
+PCMCI can take some time to process. The result of the algorithm will be saved as a pickle-file. Additionally, the network will be plotted and saved. Optionally, the plotting-function supports to plot only edges to/from a specific node.
 
 ## Analysis of the semi-enclosed circular network in the South-East Pacific Ocean
-I based my analysis of the network mainly on the literature and on the wind (10m u- & v-component of wind) and mean sea level pressure data from the ERA5 reprocessing, which provides monthly averages. I downloaded it for the period 1993-2021 directly from [their website](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels-monthly-means?tab=form) and preprocessed it with cdo in the Ubuntu bash. For this I used the commands in ``prep_ERA5_data.sh``. Additionally, flow data was taken from the [Global Ocean Physics Reanalysis (GLORYS12V1) product from CMEMS](https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_REANALYSIS_PHY_001_030) and prepared again in CDO.
+I based my analysis of the network mainly on the literature and on the wind (10m u- & v-component of wind) and mean sea level pressure data from the ERA5 reprocessing, which provides monthly averages. I downloaded it for the period 1993-2021 directly from [their website](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels-monthly-means?tab=form) and preprocessed it with cdo in the Ubuntu bash. For this I used the commands in ``/data/prep_ERA5_data.sh``. Additionally, flow data was taken from the [Global Ocean Physics Reanalysis (GLORYS12V1) product from CMEMS](https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_REANALYSIS_PHY_001_030) and prepared again in CDO according to ``/data/prep_cmems_data.sh``.
 
-All the figures in the Report were produced with code provided in the [``figures``](https://github.com/eikeschuett/dMaps_SLV/figures) subdirectory of this repo. There you can also find the png-versions of each plot and supplementary plots. An in-depth discussion of all figures can be found in the [Report](wikipedia.org)
+All the figures in the Report were produced with code provided in the [``/figures``](https://github.com/eikeschuett/dMaps_SLV/tree/main/figures) subdirectory of this repo. There you can also find the png-versions of each plot and supplementary plots. An in-depth discussion of all figures can be found in the [Report](wikipedia.org)
 
 ## Animations of SLA, SLPa and wind stress anomalies
-Animations of SLA 
+An animation of the development of SLA, SLPa and wind stress anomalies in the South-Eastern Pacific can be created with ``/network/sla_wind_stress_animation_cmems_isobars_ERA5.py``. By default, it produces gifs at different framerates for both the original eddy-resolving AVISO resolution (1/4x1/4°) and the regridded ans smoothed 2x2° version that was used in this project. The results are avialable at ``[/figures/supplementary/animation](https://github.com/eikeschuett/dMaps_SLV/tree/main/figures/supplementary)``.
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+For possible later use
 ### Download and preprocessing of data
 To make it easier to download and preprocess the data, use the following functions:
 1. aviso_download(): downloads monthly sea level anomaly data from AVISO using wget

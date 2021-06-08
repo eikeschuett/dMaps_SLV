@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Apr 14 09:12:20 20212
 
-@author: root
-"""
 
 #%% Prepare data
 
@@ -441,8 +435,10 @@ def importNetcdf(path,variable_name):
         field = nc_fid.variables[variable_name][:]     
     return field 
 
-def plot_map(lat, lon, data, seeds, title, cmap = 'viridis', 
-             outpath=None, labels=False, extent = None):
+def plot_map(lat, lon, data, seeds, title, cmap = 'viridis', alpha=1.,
+             show_colorbar=True, show_grid=False, outpath=None, 
+             labels=False, extent=None, pos_dict=None, draw_box=False,
+             ax = None):
     """
     Plots a contourplot in a map with a title. If an output-path is specified,
     the plot is saved as <title>.png in the output directory. If this directory
@@ -462,7 +458,13 @@ def plot_map(lat, lon, data, seeds, title, cmap = 'viridis',
     title : string
         Title of the plot [and output filename if outpath is specified].
     cmap : string, optional
-        Colormap of the plot. The default is 'viridis'.        
+        Colormap of the plot. The default is 'viridis'. 
+    alpha : float, optional
+        Alpha (opacity) of the domains.
+    show_colorbar :  boolean, optional
+        Whether to draw the colorbar or not. Default is True.
+    show_grid :  boolean, optional
+        Whether to draw gridlines and labels or not. Default is False.        
     outpath : string, optional
         Path where the plot will be saved. The default is None.
     labels : boolean, optional
@@ -472,6 +474,15 @@ def plot_map(lat, lon, data, seeds, title, cmap = 'viridis',
         The extent of the map. The list must have the following structure: 
         [lon_min, lon_max, lat_min, lat_max]. If None is given, the entire 
         earth will be shown. The default is None.             
+    pos_dict : dict, optinal
+        Points on the map that will be highlighted with a cross (+) and a label
+        indicating the locations latitude and longitude, if draw_box=False. 
+        Must be in format {"lat": pos_lat, "lon": pos_lon} where pos_lat and 
+        pos_lon are lists of coordinates in WGS84.
+    draw_box : boolean, optional
+        If True, the positions in pos_dict will be interpreted as outer points
+        of an area that will be filled with a color. Default is False.
+        
 
     Returns
     -------
@@ -482,16 +493,22 @@ def plot_map(lat, lon, data, seeds, title, cmap = 'viridis',
     from  cartopy import crs as ccrs, feature as cfeature
     import os
     import numpy as np
-    
+    import cmocean
     
     if extent is None:
         crs = ccrs.PlateCarree(central_longitude=180)
     else:
         crs = ccrs.PlateCarree()
+        lon_min, lon_max,  lat_min, lat_max = extent
+        # convert longitude coordinates to 0-360 scale
+        if lon_min < 0: lon_min = lon_min + 360
+        if lon_max < 0: lon_max = lon_max + 360
     
-    
-    fig, ax =  plt.subplots(1,1,figsize=(12,8), dpi=300,
-                            subplot_kw=dict(projection=crs))    
+    if ax is None:
+        fig, ax =  plt.subplots(1,1,figsize=(12,8), dpi=300,
+                                subplot_kw=dict(projection=crs))   
+    else:
+        ax=ax
     
     # fig = plt.figure(dpi=300)
     # ax = fig.add_subplot(1,1,1, 
@@ -511,7 +528,7 @@ def plot_map(lat, lon, data, seeds, title, cmap = 'viridis',
     #                          cmap='gist_ncar')
 
     filled_c = ax.contourf(lon, lat, data, transform = ccrs.PlateCarree(), 
-                           levels = 100, cmap = cmap)#, vmin = 0, vmax=100)
+                           levels = 100, cmap = cmap, alpha=alpha)#, vmin = 0, vmax=100)
     
     if type(seeds) == np.ndarray:
         # Get index of all seed locations and get their lat/lon coordinates
@@ -538,14 +555,70 @@ def plot_map(lat, lon, data, seeds, title, cmap = 'viridis',
             else:
                 x = int(np.round(np.mean(x)))
             y = int(np.round(np.mean(y)))
-            ax.text(lon[x],lat[y], int(i-1), c='k', transform=ccrs.PlateCarree())
+            
+            if extent is not None:
+                # plot label only if it's inside the extent of the plot
+                if lon[x] > lon_min and lon[x] < lon_max and \
+                   lat[y] > lat_min and lat[y] < lat_max:
+                    ax.text(lon[x],lat[y], int(i-1), c='k', transform=ccrs.PlateCarree())
 
-    fig.colorbar(filled_c, orientation='horizontal')
+    # plot positions and their labels
+    if pos_dict and draw_box==False:
+        for i in range(len(pos_dict['lat'])):
+            ax.plot(pos_dict['lon'][i], pos_dict['lat'][i], marker='+', 
+                    color='k', markersize=12, markeredgewidth = 2,
+                    transform=ccrs.Geodetic())
+            
+            ax.text(pos_dict['lon'][i], pos_dict['lat'][i]+3, 
+                    "lat = {lat}\nlon = {lon}".format(lat=pos_dict['lat'][i],
+                                                      lon=pos_dict['lon'][i]), 
+                    verticalalignment='bottom', horizontalalignment='center',
+                    bbox=dict(facecolor='white', alpha=0.5, boxstyle='round'),
+                    color='k', transform=ccrs.Geodetic())
+    
+    # Plot box
+    if pos_dict and draw_box==True:
+        if type(pos_dict)==list:
+            # cols = cmocean.cm.haline(len(pos_dict))
+            for i in range(len(pos_dict)):
+                temp = pos_dict[i]
+                # ax.fill(temp["lon"], temp["lat"], 
+                #         color=cmocean.cm.haline(i/len(pos_dict)*256), 
+                #         transform=ccrs.Geodetic(), alpha=0.8)
+                ax.plot(temp["lon"], temp["lat"], marker='o', 
+                        transform=ccrs.Geodetic())
+                if len(pos_dict)>1:
+                    region_label = "Region {}".format(i)
+                else:
+                    region_label = "Region"
+                ax.text((temp['lon'][0]+temp['lon'][2])/2, 
+                        (temp['lat'][0]+temp['lat'][1])/2, 
+                        region_label,
+                        verticalalignment='bottom', horizontalalignment='center',
+                    bbox=dict(facecolor='white', alpha=0.5, boxstyle='round'),
+                    color='k', transform=ccrs.Geodetic())
+        else:
+            ax.fill(pos_dict["lon"], pos_dict["lat"], 
+                    color=cmocean.cm.haline(128), 
+                    transform=ccrs.Geodetic(), alpha=0.8)           
+            ax.plot(pos_dict["lon"], pos_dict["lat"], marker='o', 
+                        transform=ccrs.Geodetic())
+            
+            
+    if show_grid==True:
+        g1 = ax.gridlines(draw_labels=True)
+        g1.top_labels = False
+        g1.right_labels = False
+
+        
+    if show_colorbar==True:
+        fig.colorbar(filled_c, orientation='horizontal')
     ax.set_title(title)
 
-    if outpath==None:
+    if outpath==None and ax is None:
+        #return ax
         plt.show()
-    else:
+    elif outpath is not None:
         if not os.path.exists(outpath):
             os.makedirs(outpath)
         plt.savefig(outpath + title + '.png', bbox_inches = 'tight')
@@ -786,14 +859,7 @@ def plot_network(fpath, geofile, out_fpath, extent = None):
 
     """
     
-    
-    # import os
-    # try:
-    #     os.chdir("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/")
-    # except FileNotFoundError:
-    #     os.chdir("H:/Eigene Dateien/Studium/10. Semester/NIOZ/")    
-        # os.chdir("G:/Eigene Dateien/Studium/10. Semester/NIOZ/")
-    # from dMaps_SLV import dMaps_utils as dMaps
+
     import numpy as np
     import networkx as nx
     import matplotlib.pyplot as plt
@@ -801,9 +867,6 @@ def plot_network(fpath, geofile, out_fpath, extent = None):
     import cmocean
     
     # create the network with networkX
-    
-    # import of data
-    # fpath = "playground/output/res_2_k_8_gaus/"
     
     net_list = np.load(fpath + "network_inference/network_list.npy")
     strength_list = np.load(fpath + "network_inference/strength_list.npy")
@@ -921,7 +984,7 @@ def plot_network(fpath, geofile, out_fpath, extent = None):
         if i==1:
             nx.draw_networkx_edge_labels(G,pos=coords, 
                                      edge_labels=nx.get_edge_attributes(G,'lag'),
-                                     label_pos=0.85, font_size=6)
+                                     label_pos=0.5, font_size=6)
     
         nx.draw_networkx_edges(G, pos=coords, edgelist = edges, 
                                edge_color=weights,
@@ -1145,7 +1208,7 @@ def get_domain_signals(domains, sla, lat, signal_type = 'cumulative'):
             signals.append(cumulative_anomaly(sla, weighted_domains[i]))
         # in case you want the average anomaly
         elif signal_type == 'average':
-            signals.append(average_anomaly(sla, weighted_domains[i])) 
+            signals.append(average_anomaly(sla, domains[i]))#weighted_domains[i])) 
     return np.array(signals).T
 
 def cumulative_anomaly(data,domain):
@@ -1173,8 +1236,10 @@ def average_anomaly(data,domain):
     #                  n: number of time series in the domain
     import numpy as np
     # Number of grid cells inside the domain
-    n = len(domain[domain>0])
-    return (1/n) * np.nansum(data*domain,axis=(1,2))
+    domain[domain==0] = np.nan
+    mult = data*domain
+    n = np.count_nonzero(~np.isnan(mult), axis=(1,2)) #len(domain[domain>0])
+    return (1/n) * np.nansum(mult,axis=(1,2))
 
 def plot_domain_signals(signals, domain_ids, time, var_names, 
                         filepath = None, filename = None):
@@ -1241,17 +1306,14 @@ def plot_domain_signals(signals, domain_ids, time, var_names,
 #%% Download and prepare dataset
 if __name__ == "__main__":
     
-    # import sys
-    # sys.path.append("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/")
-    # from dMaps_SLV import dMaps_utils as dMaps
     import os
     os.chdir("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/data/AVISO/")
     
     #%% Download the AVISO data
     url = "ftp://ftp-access.aviso.altimetry.fr/climatology/global/delayed-time/monthly_mean/"
     cutdirs = 5
-    username = "eike.schutt@nioz.nl"
-    password = "cG3mLH"
+    username = "youremail@adress.com"
+    password = "yourpassword"
     subdir = "raw2/"
     aviso_download(url, cutdirs, username, password, subdir)
     
@@ -1284,55 +1346,55 @@ if __name__ == "__main__":
                    sigma=1.0, truncate=3.0)
 
 
-    #%% Run delta maps for a range of k values and plot the results
-    os.chdir("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/")
+    # #%% Run delta maps for a range of k values and plot the results
+    # os.chdir("/mnt/h/Eigene Dateien/Studium/10. Semester/NIOZ/")
     
-    # Define dataset that will be used by deltaMaps
-    infile = "data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc"
+    # # Define dataset that will be used by deltaMaps
+    # infile = "data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc"
     
-    # Define range of k-values (neighborhood size)
-    k_range = range(1,21,1)
+    # # Define range of k-values (neighborhood size)
+    # k_range = range(1,21,1)
     
-    for k in k_range:
-        # Define path and filename of output of deltaMaps
-        version = "res_2_k_" + str(k) + "_gaus"
-        outdir = "playground/output/" + version
+    # for k in k_range:
+    #     # Define path and filename of output of deltaMaps
+    #     version = "res_2_k_" + str(k) + "_gaus"
+    #     outdir = "playground/output/" + version
         
-        path_to_config = "playground/"
-        config_name = "config_sla_aviso_gaus"
-        # Create the configuration file
-        create_config_file(path_to_config = path_to_config,
-                           config_name = config_name,
-                           path_to_file = infile,
-                           output_dir = outdir,
-                           var_name = "sla",
-                           lat_name = 'lat',lon_name = 'lon',
-                           delta_samples = 10000,
-                           alpha = 0.01,
-                           k = k,
-                           tau_max = 12,
-                           q = 0.05)
+    #     path_to_config = "playground/"
+    #     config_name = "config_sla_aviso_gaus"
+    #     # Create the configuration file
+    #     create_config_file(path_to_config = path_to_config,
+    #                        config_name = config_name,
+    #                        path_to_file = infile,
+    #                        output_dir = outdir,
+    #                        var_name = "sla",
+    #                        lat_name = 'lat',lon_name = 'lon',
+    #                        delta_samples = 10000,
+    #                        alpha = 0.01,
+    #                        k = k,
+    #                        tau_max = 12,
+    #                        q = 0.05)
         
-        # Run deltaMaps with the configuration file that was just created
-        run_dMaps(config_file_name = path_to_config+config_name+".json",
-                        dmaps_file_name = "py-dMaps/run_delta_maps.py")
+    #     # Run deltaMaps with the configuration file that was just created
+    #     run_dMaps(config_file_name = path_to_config+config_name+".json",
+    #                     dmaps_file_name = "py-dMaps/run_delta_maps.py")
         
-        # Create and store plots of the results of deltaMaps
-        plot_dMaps_output(geofile = 'data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg.nc',
-                          fpath = outdir, 
-                          output = 'all',
-                          outpath = 'playground/plots/2_deg_gaus/'+version+"/",
-                          show_seeds = 'homogeneity') 
+    #     # Create and store plots of the results of deltaMaps
+    #     plot_dMaps_output(geofile = 'data/AVISO/AVISO_MSLA_1993-2020_prep_2_deg.nc',
+    #                       fpath = outdir, 
+    #                       output = 'all',
+    #                       outpath = 'playground/plots/2_deg_gaus/'+version+"/",
+    #                       show_seeds = 'homogeneity') 
     
-    #%% NMI calculation to find best value for k
+    # #%% NMI calculation to find best value for k
         
-    # Path to the domain maps
-    path = 'playground/output/'
-    nmi_matrix = calc_nmi_matrix(path = path, 
-                                 res = 2, 
-                                 k = k_range,
-                                 path_end = '_gaus/domain_identification/domain_maps.npy')
+    # # Path to the domain maps
+    # path = 'playground/output/'
+    # nmi_matrix = calc_nmi_matrix(path = path, 
+    #                              res = 2, 
+    #                              k = k_range,
+    #                              path_end = '_gaus/domain_identification/domain_maps.npy')
         
-    plot_nmi_matrix(nmi_matrix = nmi_matrix,
-                    k = k_range,
-                    fname = "playground/plots/2_deg_gaus/nmi_matrix_res_2_gaus.png")
+    # plot_nmi_matrix(nmi_matrix = nmi_matrix,
+    #                 k = k_range,
+    #                 fname = "playground/plots/2_deg_gaus/nmi_matrix_res_2_gaus.png")

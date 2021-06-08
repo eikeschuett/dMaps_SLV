@@ -7,11 +7,13 @@ A functional network is infered with deltaMaps and a causal network with PCMCI (
 
 ## TBD
 - [ ] update readme
-- [x] plot PCMCI network with lower p value
-- [ ] interprete network
-- [ ] update report
-- [ ] read paper
-- [ ] update bash scripts for data preparation
+  - [ ]  data preparation (bash scripts are included
+  - [ ]  environments yml files
+  - [ ]  structure of directories and required additional packages which are not available through conda (i.e. airsea and py-dMaps)
+  - [ ]  animation
+- [ ] write and upload report
+- [ ] uplaod animation script
+- [ ] prepare presentation for thuesday
 
 # Workflow
 

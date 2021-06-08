@@ -7,7 +7,7 @@ A functional network is infered with deltaMaps and a causal network with PCMCI (
 
 ## TBD
 - [ ] update readme
-  - [ ]  data preparation (bash scripts are included
+  - [ ]  data preparation (bash scripts are included) and availability of climate indices!
   - [ ]  environments yml files
   - [ ]  structure of directories and required additional packages which are not available through conda (i.e. airsea and py-dMaps)
   - [ ]  animation

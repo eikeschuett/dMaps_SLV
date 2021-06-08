@@ -402,10 +402,14 @@ if __name__ == "__main__":
     # nc_fname = "data/ERA5/ERA5_wind_pressure_2_deg.nc"
     ds = xr.open_dataset(nc_fname)
     
-    ncfile = "data/AVISO/AVISO_MSLA_1993-2020.nc"#"dMaps_SLV/data/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc"
-    ds_sla = xr.open_dataset(ncfile)
+    ncfiles = ["data/AVISO/AVISO_MSLA_1993-2020.nc",
+               "dMaps_SLV/data/AVISO_MSLA_1993-2020_prep_2_deg_gaus.nc"]
     
-    time = ds_sla.time.values
+    dirs = ["eddy_resolving/",
+            "smoothed/"]
+    
+    
+    
     
     # Prepare domain signal data
     domain_ids = [5, 7, 18, 25, 43, 49, 59]
@@ -419,68 +423,65 @@ if __name__ == "__main__":
     lat_dom = dMaps.importNetcdf(fpath_2_deg, 'lat')
     lon_dom = dMaps.importNetcdf(fpath_2_deg, 'lon')
     
-    # domain_signals =  dMaps.get_domain_signals(domains = domains, 
-    #                                     sla = sla, lat = lat_dom, 
-    #                                     signal_type = 'average')
-    # domain_signals = domain_signals[:,domain_ids]
-    
-    # domain_vmax = np.max([abs(np.min(domain_signals)), np.max(domain_signals)])
-    # domain_vmin = -domain_vmax
+    for i in range(0,2):
+        print(i)
+        ds_sla = xr.open_dataset(ncfiles[i])
+        time = ds_sla.time.values
     
     #timestep = 1
-    #%%
-    for timestep in range(len(time)):
-    
-    
-        year = pd.to_datetime(time[timestep]).year
-        month = pd.to_datetime(time[timestep]).month
-        title = "SLA, Wind Stress and Surface Pressure Anomalies\n{month:02}-{year}".format(
-            year=year, month=month)
-        
-        v_east, v_north, velocity, lon_mask, lat_mask = arrow_data(ds, 
-                                                            extent, 
-                                                            timestep,
-                                                            param = "wind stress")
-        
-        domains_ti = domain_mask.copy()
-        # for i in range(domain_signals.shape[1]):
-        #     #domains_ti[i,:,:][domains_ti[i,:,:]==0] = np.nan
-        #     domains_ti[i,:,:][domains_ti[i,:,:]==1] = domain_signals[timestep, i]
-            
-        ap, ap_lon, ap_lat = ap_data(ds, extent, timestep)
-            
-        sla, sla_lon, sla_lat = sla_data(ds_sla, extent, timestep)
-        
         #%%
-        outdir = "playground/plots/Network/flow/Animation/sla_wind_stress_pressure_SO_anomalies_eddies/"
-        out_fname = outdir + "timestep_{timestep:03}.png".format(timestep=timestep)
+        for timestep in range(len(time)):
+        
+        
+            year = pd.to_datetime(time[timestep]).year
+            month = pd.to_datetime(time[timestep]).month
+            title = "SLA, Wind Stress and Surface Pressure Anomalies\n{month:02}-{year}".format(
+                year=year, month=month)
+            
+            v_east, v_north, velocity, lon_mask, lat_mask = arrow_data(ds, 
+                                                        extent, 
+                                                        timestep,
+                                                        param = "wind stress")
+            
+            domains_ti = domain_mask.copy()
+                
+            ap, ap_lon, ap_lat = ap_data(ds, extent, timestep)
+                
+            sla, sla_lon, sla_lat = sla_data(ds_sla, extent, timestep)
+            
+            #%%
+            outdir = "dMaps_SLV/figures/supplementary/animation/" + dirs[i]
+            out_fname = outdir + "plots/timestep_{timestep:03}.png".format(
+                                                            timestep=timestep)
+            
+        
+            arrow_plot_currents(extent, lon=lon_mask, lat=lat_mask, 
+                                v_east=v_east, v_north=v_north, 
+                                velocity=velocity,
+                                title=title, vmax=0.025, 
+                                domain_data=domains_ti, domain_lat=lat_dom, 
+                                domain_lon=lon_dom, 
+                                sla_data=sla, sla_lon=sla_lon, sla_lat=sla_lat,
+                                sla_vmin=-0.13, sla_vmax=0.13, #sla_vmin=-0.09, sla_vmax=0.09,
+                                ap_data=ap, ap_lat=ap_lat, ap_lon=ap_lon,
+                                arrow_label='Arrow color: \nWind stress anomaly [N m$^{-2}$]',
+                                anomaly = True,
+                                timestep=timestep,
+                                out_fname=out_fname)
+            
+            plt.close()
+        
+        
+        #%% create gif
+        
+        fps_list = [1,2,5]
+        for fps in fps_list:
+            out_fname = outdir + "sla_wind_stress_SLPa_{fps}_fps.gif".format(
+                                                                    fps=fps)
+            
+            nau.create_gif(indir = outdir + "plots/", 
+                           outfname = out_fname, 
+                           fps = fps,
+                           extension = ".png")
         
     
-        arrow_plot_currents(extent, lon=lon_mask, lat=lat_mask, 
-                            v_east=v_east, v_north=v_north, 
-                            velocity=velocity,
-                            title=title, vmax=0.025, 
-                            domain_data=domains_ti, domain_lat=lat_dom, 
-                            domain_lon=lon_dom, 
-                            sla_data=sla, sla_lon=sla_lon, sla_lat=sla_lat,
-                            sla_vmin=-0.13, sla_vmax=0.13, #sla_vmin=-0.09, sla_vmax=0.09,
-                            ap_data=ap, ap_lat=ap_lat, ap_lon=ap_lon,
-                            arrow_label='Arrow color: \nWind stress anomaly [N m$^{-2}$]',
-                            anomaly = True,
-                            timestep=timestep,
-                            out_fname=out_fname)    
-    
-    
-    
-    #%% create gif
-    
-    fps_list = [0.5,1,2,5,10]
-    for fps in fps_list:
-        out_fname = outdir + "sla_wind_stress_pressure_anomalies_{fps}_fps.gif".format(fps=fps)
-        
-        nau.create_gif(indir = outdir, 
-                       outfname = out_fname, 
-                       fps = fps,
-                       extension = ".png")
-    
-

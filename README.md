@@ -50,6 +50,19 @@ For convinience, i now switched to my ``networkx``-environment on Windows, but I
 
 Finding the best value for the neighborhood size (K) (i.e. the K nearest neighbors around a grid cell that initially form a region) is a crucual step when using deltaMaps. If K is too small, the local homogeneity field will be noisy, if its too large, the local homogeneity may be oversmoothed and candidates for domains may remain undeteced. According to [Falasca et al. 2019](https://doi.org/10.1029/2019MS001654), the best K-value can be found by comparing the differences between several runs of deltaMaps with different values for k using the Normalize Mutual Information (NMI). For this reason, deltaMaps will by default run for k's between 4 and 20 and the NMI-matrix will be plotted at the end. K should be choosen so that the NMI is large for this K and for neighboring values of K. This avoids that the K is sensitive to fluctuations around the chosen K value. It should also be at least 4 so that neighbors in all directions of a grid cell are considered. In my case, k=11 appears to be the best choice. Therefore, the results from the deltaMas run with k=11 will be used for the remainder of the study.
 
+## Inference of a causal network with the PCMCI-algorithm from the tigramite package
+``run_tigramite_on_dMaps.py`` contains some helper functions to run tigramite on the results of deltaMaps (i.e. SLA dataset with reduces dimensionality). Again, you should check that the working directory (~ line 665) and all other filepaths are correct. Some of the functions import ``dMaps_utils.py`` and ``network_analysis_utils.py``. Therefore I suggest to use the parent directory of the repo as working directory. Otherwise you will have to fix this with a sys.append. 
+
+PCMCI can take some time to process. Therefore, the result of the algorithm will be saved as a pickle-file. Additionally, the network will be plotted and saved. Optionally, the plotting-function supports to plot only edges to/from a specific node.
+
+## Analysis of the semi-enclosed circular network in the South-East Pacific Ocean
+I based my analysis of the network mainly on the literature and on the wind (10m u- & v-component of wind) and mean sea level pressure data from the ERA5 reprocessing, which provides monthly averages. I downloaded it for the period 1993-2021 directly from [their website](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels-monthly-means?tab=form) and preprocessed it with cdo in the Ubuntu bash. For this I used the commands in ``prep_ERA5_data.sh``. Additionally, flow data was taken from the [Global Ocean Physics Reanalysis (GLORYS12V1) product from CMEMS](https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_REANALYSIS_PHY_001_030) and prepared again in CDO.
+
+All the figures in the Report were produced with code provided in the [``figures``](https://github.com/eikeschuett/dMaps_SLV/figures) subdirectory of this repo. There you can also find the png-versions of each plot and supplementary plots. An in-depth discussion of all figures can be found in the [Report](wikipedia.org)
+
+## Animations of SLA, SLPa and wind stress anomalies
+Animations of SLA 
+
 
 
 ### Download and preprocessing of data

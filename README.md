@@ -1,7 +1,30 @@
-# dMaps_SLV
-Application of deltaMaps method to identify sea surface veriability domains. deltaMaps for Python is avaialable [on GitHub](https://github.com/FabriFalasca/py-dMaps).
+# Sea Level Variability Domains and Their Linkages
+This repository contains all codes, results and a report on my project on sea level variability (SLV) with special focus on the South East Pacific. 
 
-A functional network is infered with deltaMaps and a causal network with PCMCI (included in the package [tigramite](https://github.com/jakobrunge/tigramite).
+Accurate projections of sea level rise are highly important for decision makers and the population in the low lying coastal zone (Nicholls and Cazenave 2010). However, due to the complex causes for the variability of sea level, reliable regional predictions remain a challenge. Understanding local and regional factors that contribute to this variability will improve the understanding and predictability of sea level (Church et al. 2010, Han et al. 2019). Sea level variations can be caused by many different factors, e.g. local and remote variability of atmospheric or oceanic circulations causing wind stress anomalies or changes in temperature or salinity (Meyssignac et al. 2017). 
+
+In this project, I use a dataset of satellite-derived monthly mean sea level anomaly from [AVISO](https://www.aviso.altimetry.fr/en/data/products/sea-surface-height-products/global.html) and the dimensionality reduction algorithm [deltaMaps](https://github.com/FabriFalasca/py-dMaps) (Fountalis et al. 2018, Falasca et al. 2019) to derive regions with similar SLV dynamics, so called domains. The sea level signals of the different domains is then fed into the causal inference algorithm [PCMCI](https://github.com/jakobrunge/tigramite) (Runge et al. 2019) to identify the causal network between the domains. A subset of the causal network in the South East Pacific is then analysed using current velocity data from the CMEMS' [GLORYS reprocessing](https://resources.marine.copernicus.eu/?option=com_csw&view=details&product_id=GLOBAL_REANALYSIS_PHY_001_030) and wind and sea level pressure data from ERA5 provided by ECMWF (Hersbach et al. 2020). The results highlight the importance of the El Niño-Southern Oscillation (ENSO) on both atmospheric and oceanic processes and suggest that SLV patterns in the South Eastern Pacific are sensitive to the "flavour" of ENSO. However, this data driven approach can not accurately determine the physical processes at work and some questions remain unanswered. An approach that couples observational data and modelling may help to overcome this bottleneck.
+
+This repository contains the final report, where I discuss the methods and results in more detail. Furthermore, I included all codes and necessary information to reproduce my results in this repository (see below).
+
+This was my internship project during my time in the sea level group at [NIOZ](https://www.nioz.nl/en). 
+
+### Literature
+- Church, John A.; Aarup, Thorkild; Woodworth, Philip L.; Wilson, W. Stanley; Nicholls, Robert J.; Rayner, Ralph et al. (2010): Sea - Level Rise and Variability. Synthesis and Outlook for the Future. In: John A. Church, Philip L. Woodworth, Thorkild Aarup und W. Stanley Wilson (Hg.): Understanding Sea-Level Rise and Variability. Oxford, UK: Wiley-Blackwell, S. 402–419.
+
+- Falasca, Fabrizio; Bracco, Annalisa; Nenes, Athanasios; Fountalis, Ilias (2019): Dimensionality Reduction and Network Inference for Climate Data Using δ ‐MAPS. Application to the CESM Large Ensemble Sea Surface Temperature. In: J. Adv. Model. Earth Syst. 11 (6), S. 1479–1515. DOI: 10.1029/2019MS001654.
+
+- Fountalis, Ilias; Dovrolis, Constantine; Bracco, Annalisa; Dilkina, Bistra; Keilholz, Shella (2018): δ-MAPS. From spatio-temporal data to a weighted and lagged network between functional domains. In: Applied network science 3 (1), S. 21. DOI: 10.1007/s41109-018-0078-z.
+
+- Han, Weiqing; Stammer, Detlef; Thompson, Philip; Ezer, Tal; Palanisamy, Hindu; Zhang, Xuebin et al. (2019): Impacts of Basin-Scale Climate Modes on Coastal Sea Level. A Review. In: Surveys in geophysics 40 (6), S. 1493–1541. DOI: 10.1007/s10712-019-09562-8.
+
+- Hersbach, Hans; Bell, Bill; Berrisford, Paul; Hirahara, Shoji; Horányi, András; Muñoz‐Sabater, Joaquín et al. (2020): The ERA5 global reanalysis. In: Q.J.R. Meteorol. Soc. 146 (730), S. 1999–2049. DOI: 10.1002/qj.3803.
+
+- Meyssignac, B.; Piecuch, C. G.; Merchant, C. J.; Racault, M.-F.; Palanisamy, H.; MacIntosh, C. et al. (2017): Causes of the Regional Variability in Observed Sea Level, Sea Surface Temperature and Ocean Colour Over the Period 1993–2011. In: Surv Geophys 38 (1), S. 187–215. DOI: 10.1007/s10712-016-9383-1.
+
+- Nicholls, Robert J.; Cazenave, Anny (2010): Sea-level rise and its impact on coastal zones. In: Science (New York, N.Y.) 328 (5985), S. 1517–1520. DOI: 10.1126/science.1185782.
+
+- Runge, Jakob; Nowack, Peer; Kretschmer, Marlene; Flaxman, Seth; Sejdinovic, Dino (2019): Detecting and quantifying causal associations in large nonlinear time series datasets. In: Science advances 5 (11), eaau4996. DOI: 10.1126/sciadv.aau4996.
 
 # Notes
 
@@ -11,9 +34,10 @@ A functional network is infered with deltaMaps and a causal network with PCMCI (
   - [x]  environments yml files
   - [x]  structure of directories and required additional packages which are not available through conda (i.e. airsea and py-dMaps)
   - [x]  animation
+  - [ ]  dconsider to delete stuff at the bottom
 - [ ] write and upload report
-- [ ] uplaod animation script
 - [ ] prepare presentation for Thusday
+- [ ] 
 
 # Workflow
 ## Overview

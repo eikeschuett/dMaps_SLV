@@ -55,8 +55,8 @@ domains_2 = [18, 18, 59, 59]
 
 fnames = ["fig_12_lag_corr_pa_18_sla_25.png",
           "fig_15_lag_corr_pa_18_sla_7.png",
-          "supplementary/lag_corr_SLPa_SLA/lag_corr_pa_18_sla_25.png",
-          "supplementary/lag_corr_SLPa_SLA/lag_corr_pa_18_sla_49.png"]
+          "supplementary/lag_corr_SLPa_SLA/lag_corr_pa_59_sla_25.png",
+          "supplementary/lag_corr_SLPa_SLA/lag_corr_pa_59_sla_49.png"]
 
 
 for i in range(len(domains_1)):

@@ -631,7 +631,8 @@ def plot_dMaps_output(geofile,
                       output = 'domain', 
                       outpath=None, 
                       show_seeds=False,
-                      extent = None):
+                      extent = None,
+                      alpha=1.):
     """
     Function to plot the output of deltaMaps. By default, it plots a map of all
     domains, but it can also visualize the local homogeneity and the location 
@@ -670,7 +671,9 @@ def plot_dMaps_output(geofile,
     extent : list, optional
         The extent of the map. The list must have the following structure: 
         [lon_min, lon_max, lat_min, lat_max]. If None is given, the entire 
-        earth will be shown. The default is None.               
+        earth will be shown. The default is None.  
+    alpha : float, optional
+        Alpha (opacity) of the domains in the domain map. Default is 1.
 
     Returns
     -------
@@ -708,7 +711,8 @@ def plot_dMaps_output(geofile,
                  title = 'local homogeneity field',
                  cmap = 'viridis',
                  outpath = outpath,
-                 extent = extent)     
+                 extent = extent,
+                 alpha = alpha)     
         
     if output == 'all' or output == 'domain':
         if show_seeds=='homogeneity':
@@ -726,7 +730,8 @@ def plot_dMaps_output(geofile,
                   cmap = 'prism',
                   outpath = outpath,
                   labels = True,
-                  extent = extent)             
+                  extent = extent,
+                  alpha = alpha)             
         
     if output == 'all' or output == 'domain strength':
         seeds = None
@@ -741,7 +746,8 @@ def plot_dMaps_output(geofile,
                  title = "Strength map",
                  cmap = 'viridis',
                  outpath = outpath,
-                 extent = extent)          
+                 extent = extent,
+                 alpha = alpha)          
         
 def get_domain_map(d_maps):
     """

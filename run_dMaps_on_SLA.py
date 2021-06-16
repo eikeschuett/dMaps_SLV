@@ -31,7 +31,7 @@ for k in k_range:
                                   delta_samples=10000,
                                   alpha=0.01,
                                   k=k,
-                                  tau_max=6,
+                                  tau_max=12,
                                   q=0.05)
         
     dMaps.run_dMaps(config_file_name = path_to_config+config_name+".json",
